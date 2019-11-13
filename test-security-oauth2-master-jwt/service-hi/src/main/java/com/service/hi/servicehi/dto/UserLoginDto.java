@@ -1,11 +1,11 @@
 package com.service.hi.servicehi.dto;
 
 import com.service.hi.servicehi.entity.JWT;
-import com.service.hi.servicehi.entity.User;
+import com.service.hi.servicehi.entity.SysUser;
 
 public class UserLoginDto {
     private JWT jwt;
-    private User user;
+    private SysUser user;
 
     public JWT getJwt() {
         return jwt;
@@ -15,11 +15,11 @@ public class UserLoginDto {
         this.jwt = jwt;
     }
 
-    public User getUser() {
+    public SysUser getUser() {
         return user;
     }
 
-    public void setUser(User user) {
+    public void setUser(SysUser user) {
         this.user = user;
     }
 

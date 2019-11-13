@@ -3,7 +3,7 @@ package com.service.hi.servicehi.controller;
 import com.service.hi.servicehi.dto.UserLoginDto;
 import com.service.hi.servicehi.dto.UserLoginParamDto;
 import com.service.hi.servicehi.entity.SysUser;
-import com.service.hi.servicehi.entity.User;
+import com.service.hi.servicehi.entity.SysUser;
 import com.service.hi.servicehi.repository.SysUserRepository;
 import com.service.hi.servicehi.utils.BPwdEncoderUtil;
 

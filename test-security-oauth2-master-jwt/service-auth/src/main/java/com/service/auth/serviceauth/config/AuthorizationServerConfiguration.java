@@ -7,8 +7,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
@@ -17,27 +20,46 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
+import org.springframework.security.oauth2.provider.token.TokenEnhancer;
+import org.springframework.security.oauth2.provider.token.TokenEnhancerChain;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
 
+import com.service.auth.serviceauth.service.impl.CustomTokenEnhancer;
+
 import javax.sql.DataSource;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableAuthorizationServer
 public class AuthorizationServerConfiguration extends AuthorizationServerConfigurerAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuthorizationServerConfiguration.class);
-	
     @Autowired
     @Qualifier("authenticationManagerBean")
-    AuthenticationManager authenticationManager;
+    private AuthenticationManager authenticationManager;
+ 
     @Autowired
-    private DataSource dataSource;//配置文件配置的数据库信息
+    @Qualifier("dataSource")
+    private DataSource dataSource;
+ 
+    @Autowired
+    private UserDetailsService userDetailsService;
+ 
 
+    @Autowired
+    @Qualifier("passwordEncoder")
+    PasswordEncoder passwordEncoder;//BCryptPasswordEncoder
+ 
+/*    @Autowired
+    TokenStore tokenStore;//token模式
+    
+    @Autowired
+    JwtAccessTokenConverter accessTokenConverter;//jwt配置
+*/
     @Bean
     public TokenStore tokenStore() {
         return new JwtTokenStore(jwtAccessTokenConverter());
@@ -49,46 +71,52 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
         converter.setKeyPair(keyStoreKeyFactory.getKeyPair("test-jwt"));//密钥别名
         return converter;
     }
-    @Bean//声明 ClientDetails实现
-    public ClientDetailsService clientDetailsService() {
-        return new JdbcClientDetailsService(dataSource);
-    }
+    
+	@Bean
+	public TokenEnhancer tokenEnhancer() {
+		return new CustomTokenEnhancer();
+	}
 
-    @Override//配置客户端详情服务（ClientDetailsService），客户端详情信息在这里进行初始化，你能够把客户端详情信息写死在这里或者是通过数据库来存储调取详情信息
+    @Override
     public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-/*    	// 配置两个客户端，一个用于password认证一个用于client认证
-        clients.jdbc(dataSource)
-                .withClient("client_1")
-                .authorizedGrantTypes("client_credentials", "refresh_token")
-                .scopes("select")
-                .authorities("oauth2")
-                .secret(new BCryptPasswordEncoder().encode("123456"))
-                .and().withClient("client_2")
-                .authorizedGrantTypes("password", "refresh_token")
-                .scopes("server")
-                .authorities("oauth2")
-                .secret(new BCryptPasswordEncoder().encode("123456"));*/
-    	//直接读取数据库，需要保证数据库配置有客户端信息（oauth_client_details），否则资源服务器无法获取认证数据
-        clients.withClientDetails(clientDetailsService());
+        clients.jdbc(dataSource);
+/*        		//授权码模式
+                .withClient("client_code")
+                .secret(passwordEncoder.encode("123456"))
+                .authorizedGrantTypes("authorization_code", "refresh_token",
+                        "password", "implicit")
+                .scopes("all")
+                .authorities("ROLE_ADMIN")
+                .redirectUris("https://www.baidu.com")
+                .accessTokenValiditySeconds(1200)
+                .refreshTokenValiditySeconds(50000);*/
 
     }
-    @Override//配置授权（authorization）以及令牌（token）的访问端点和令牌服务(token services)，还有token的存储方式(tokenStore)
+ 
+    @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-        endpoints.tokenStore(tokenStore()).tokenEnhancer(jwtAccessTokenConverter()).authenticationManager(authenticationManager);
+        TokenEnhancerChain tokenEnhancerChain = new TokenEnhancerChain();
+        tokenEnhancerChain.setTokenEnhancers(
+                Arrays.asList(tokenEnhancer(), jwtAccessTokenConverter()));//令牌中添加自定义信息
 
-        // 配置tokenServices参数
-        DefaultTokenServices tokenServices = new DefaultTokenServices();
-        tokenServices.setTokenStore(endpoints.getTokenStore());
-        tokenServices.setSupportRefreshToken(false);
-        tokenServices.setClientDetailsService(endpoints.getClientDetailsService());
-        tokenServices.setTokenEnhancer(endpoints.getTokenEnhancer());
-        tokenServices.setAccessTokenValiditySeconds((int)TimeUnit.DAYS.toSeconds(30)); // 30天
-        endpoints.tokenServices(tokenServices);
+        endpoints.tokenStore(tokenStore())
+        		.tokenEnhancer(tokenEnhancerChain)//令牌配置
+                .authenticationManager(authenticationManager)
+                .userDetailsService(userDetailsService)//必须设置 UserDetailsService 否则刷新token 时会报错
+                .allowedTokenEndpointRequestMethods(HttpMethod.GET, HttpMethod.POST);
+        endpoints.accessTokenConverter(jwtAccessTokenConverter());
+        
+        //自定义授权页
+        endpoints.pathMapping("/oauth/confirm_access", "/confirm");
     }
+ 
     @Override
     public void configure(AuthorizationServerSecurityConfigurer security) throws Exception {
-        // 允许表单认证
-        security.allowFormAuthenticationForClients().tokenKeyAccess("permitAll()")
-                .checkTokenAccess("isAuthenticated()");
+        security
+		/* 配置token获取合验证时的策略 */
+        .tokenKeyAccess("permitAll()")// 开启/oauth/token_key验证端口无权限访问
+        .checkTokenAccess("isAuthenticated()")// 开启/oauth/check_token验证端口认证权限访问
+        .allowFormAuthenticationForClients();//允许表单登录
+ 
     }
 }

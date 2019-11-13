@@ -14,6 +14,7 @@ public class UserController {
 
     Logger logger = LoggerFactory.getLogger(UserController.class);
 
+    //用于获取当前token的用户信息
     @RequestMapping(value = "/current", method = RequestMethod.GET)
     public Principal getUser(Principal principal) {
         logger.info(">>>>>>>>>>>>>>>>>>>>>>>>");

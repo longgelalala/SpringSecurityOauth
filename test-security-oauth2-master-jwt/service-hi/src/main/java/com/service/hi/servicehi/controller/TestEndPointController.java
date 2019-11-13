@@ -1,7 +1,7 @@
 package com.service.hi.servicehi.controller;
 
 import com.service.hi.servicehi.entity.SysUser;
-import com.service.hi.servicehi.entity.User;
+import com.service.hi.servicehi.entity.SysUser;
 import com.service.hi.servicehi.service.UserService;
 import com.service.hi.servicehi.utils.BPwdEncoderUtil;
 
@@ -63,11 +63,17 @@ public class TestEndPointController {
         return null;
     }
 
+    //@PreAuthorize("hasRole('ADMIN') AND hasRole('DBA')")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN')")
     @RequestMapping("/hello")
     public String hello() {
-
-        return "hello you";
+        return "hello you.by ROLE_ADMIN";
+    }
+    
+    @PreAuthorize("hasAnyRole('USER')")
+    @RequestMapping("/helloRole")
+    public String helloRole() {
+        return "hello you.by USER";
     }
 
 }
