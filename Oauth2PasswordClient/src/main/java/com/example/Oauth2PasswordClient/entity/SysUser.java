@@ -5,6 +5,7 @@ import java.util.List;
 import javax.persistence.*;
 //系统用户
 @Entity
+
 @Table(name = "sys_user")
 public class SysUser {
  
@@ -61,4 +62,6 @@ public class SysUser {
                 ", roles=" + roles +
                 '}';
     }
+
+
 }

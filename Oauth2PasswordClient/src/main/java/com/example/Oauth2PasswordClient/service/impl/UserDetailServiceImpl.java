@@ -49,5 +49,8 @@ public class UserDetailServiceImpl implements UserDetailsService {
       System.err.println("grantedAuthorities===============" + grantedAuthorities);
       return new User(sysUser.getName(), sysUser.getPassword(), grantedAuthorities);
   }
+
+
+
 }
 

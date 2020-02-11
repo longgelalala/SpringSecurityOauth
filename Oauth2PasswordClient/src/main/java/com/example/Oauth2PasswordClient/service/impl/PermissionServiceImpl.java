@@ -30,11 +30,11 @@ public class PermissionServiceImpl implements PermissionService {
  
         List<Permission> list = new ArrayList<Permission>();
         List<Object[]> abcs = entityManager.createNativeQuery("select p.* \n" +
-                "        from Sys_User u\n" +
+                "        from sys_user u\n" +
                 "        LEFT JOIN sys_role_user sru on u.id= sru.Sys_User_id\n" +
-                "        LEFT JOIN Sys_Role r on sru.Sys_Role_id=r.id\n" +
-                "        LEFT JOIN Sys_permission_role spr on spr.role_id=r.id\n" +
-                "        LEFT JOIN Sys_permission p on p.id =spr.permission_id\n" +
+                "        LEFT JOIN sys_role r on sru.Sys_Role_id=r.id\n" +
+                "        LEFT JOIN sys_permission_role spr on spr.role_id=r.id\n" +
+                "        LEFT JOIN sys_permission p on p.id =spr.permission_id\n" +
                 "        where u.id="+userId).getResultList();
         for (Object[] abc : abcs) {
             Permission permission = new Permission();
